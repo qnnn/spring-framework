@@ -194,7 +194,7 @@ public abstract class AopUtils {
 	/**
 	 * Given a method, which may come from an interface, and a target class used
 	 * in the current AOP invocation, find the corresponding target method if there
-	 * is one. E.g. the method may be {@code IFoo.bar()} and the target class
+	 * is one. For example, the method may be {@code IFoo.bar()} and the target class
 	 * may be {@code DefaultFoo}. In this case, the method may be
 	 * {@code DefaultFoo.bar()}. This enables attributes on that method to be found.
 	 * <p><b>NOTE:</b> In contrast to {@link org.springframework.util.ClassUtils#getMostSpecificMethod},
@@ -353,9 +353,10 @@ public abstract class AopUtils {
 
 		// Use reflection to invoke the method.
 		try {
-			ReflectionUtils.makeAccessible(method);
-			return (coroutinesReactorPresent && KotlinDetector.isSuspendingFunction(method) ?
-					KotlinDelegate.invokeSuspendingFunction(method, target, args) : method.invoke(target, args));
+			Method originalMethod = BridgeMethodResolver.findBridgedMethod(method);
+			ReflectionUtils.makeAccessible(originalMethod);
+			return (coroutinesReactorPresent && KotlinDetector.isSuspendingFunction(originalMethod) ?
+					KotlinDelegate.invokeSuspendingFunction(originalMethod, target, args) : originalMethod.invoke(target, args));
 		}
 		catch (InvocationTargetException ex) {
 			// Invoked method threw a checked exception.

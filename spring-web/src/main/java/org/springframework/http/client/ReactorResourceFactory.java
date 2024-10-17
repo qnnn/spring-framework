@@ -61,12 +61,12 @@ public class ReactorResourceFactory
 	private Supplier<ConnectionProvider> connectionProviderSupplier = () -> ConnectionProvider.create("webflux", 500);
 
 	@Nullable
-	private ConnectionProvider connectionProvider;
+	private volatile ConnectionProvider connectionProvider;
 
 	private Supplier<LoopResources> loopResourcesSupplier = () -> LoopResources.create("webflux-http");
 
 	@Nullable
-	private LoopResources loopResources;
+	private volatile LoopResources loopResources;
 
 	private boolean manageConnectionProvider = false;
 
@@ -122,8 +122,9 @@ public class ReactorResourceFactory
 	 * Use this when you don't want to participate in global resources and
 	 * you want to customize the creation of the managed {@code ConnectionProvider}.
 	 * <p>By default, {@code ConnectionProvider.elastic("http")} is used.
-	 * <p>Note that this option is ignored if {@code userGlobalResources=false} or
-	 * {@link #setConnectionProvider(ConnectionProvider)} is set.
+	 * <p>Note that this supplier is ignored if {@link #isUseGlobalResources()}
+	 * is {@code true} or once the {@link #setConnectionProvider(ConnectionProvider) ConnectionProvider}
+	 * is set.
 	 * @param supplier the supplier to use
 	 */
 	public void setConnectionProviderSupplier(Supplier<ConnectionProvider> supplier) {
@@ -141,18 +142,25 @@ public class ReactorResourceFactory
 
 	/**
 	 * Return the configured {@link ConnectionProvider}.
+	 * <p>Lazily tries to start the resources on demand if not initialized yet.
+	 * @see #start()
 	 */
 	public ConnectionProvider getConnectionProvider() {
-		Assert.state(this.connectionProvider != null, "ConnectionProvider not initialized yet");
-		return this.connectionProvider;
+		if (this.connectionProvider == null) {
+			start();
+		}
+		ConnectionProvider connectionProvider = this.connectionProvider;
+		Assert.state(connectionProvider != null, "ConnectionProvider not initialized");
+		return connectionProvider;
 	}
 
 	/**
 	 * Use this when you don't want to participate in global resources and
 	 * you want to customize the creation of the managed {@code LoopResources}.
-	 * <p>By default, {@code LoopResources.create("reactor-http")} is used.
-	 * <p>Note that this option is ignored if {@code userGlobalResources=false} or
-	 * {@link #setLoopResources(LoopResources)} is set.
+	 * <p>By default, {@code LoopResources.create("webflux-http")} is used.
+	 * <p>Note that this supplier is ignored if {@link #isUseGlobalResources()}
+	 * is {@code true} or once the {@link #setLoopResources(LoopResources) LoopResources}
+	 * is set.
 	 * @param supplier the supplier to use
 	 */
 	public void setLoopResourcesSupplier(Supplier<LoopResources> supplier) {
@@ -170,10 +178,16 @@ public class ReactorResourceFactory
 
 	/**
 	 * Return the configured {@link LoopResources}.
+	 * <p>Lazily tries to start the resources on demand if not initialized yet.
+	 * @see #start()
 	 */
 	public LoopResources getLoopResources() {
-		Assert.state(this.loopResources != null, "LoopResources not initialized yet");
-		return this.loopResources;
+		if (this.loopResources == null) {
+			start();
+		}
+		LoopResources loopResources = this.loopResources;
+		Assert.state(loopResources != null, "LoopResources not initialized");
+		return loopResources;
 	}
 
 	/**
@@ -220,6 +234,12 @@ public class ReactorResourceFactory
 	}
 
 
+	/**
+	 * Starts the resources if initialized outside an ApplicationContext.
+	 * This is for backwards compatibility; the preferred way is to rely on
+	 * the ApplicationContext's {@link SmartLifecycle lifecycle management}.
+	 * @see #start()
+	 */
 	@Override
 	public void afterPropertiesSet() {
 		if (this.applicationContext == null) {
@@ -227,6 +247,12 @@ public class ReactorResourceFactory
 		}
 	}
 
+	/**
+	 * Stops the resources if initialized outside an ApplicationContext.
+	 * This is for backwards compatibility; the preferred way is to rely on
+	 * the ApplicationContext's {@link SmartLifecycle lifecycle management}.
+	 * @see #stop()
+	 */
 	@Override
 	public void destroy() {
 		if (this.applicationContext == null) {
@@ -237,7 +263,7 @@ public class ReactorResourceFactory
 	@Override
 	public void start() {
 		synchronized (this.lifecycleMonitor) {
-			if (!isRunning()) {
+			if (!this.running) {
 				if (this.useGlobalResources) {
 					Assert.isTrue(this.loopResources == null && this.connectionProvider == null,
 							"'useGlobalResources' is mutually exclusive with explicitly configured resources");
@@ -267,7 +293,7 @@ public class ReactorResourceFactory
 	@Override
 	public void stop() {
 		synchronized (this.lifecycleMonitor) {
-			if (isRunning()) {
+			if (this.running) {
 				if (this.useGlobalResources) {
 					HttpResources.disposeLoopsAndConnectionsLater(this.shutdownQuietPeriod, this.shutdownTimeout).block();
 					this.connectionProvider = null;
@@ -304,6 +330,12 @@ public class ReactorResourceFactory
 	@Override
 	public boolean isRunning() {
 		return this.running;
+	}
+
+	@Override
+	public int getPhase() {
+		// Same as plain Lifecycle
+		return 0;
 	}
 
 }

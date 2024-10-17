@@ -205,7 +205,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * Set the ParameterNameDiscoverer to use for resolving method parameter
-	 * names if needed (e.g. for constructor names).
+	 * names if needed (for example, for constructor names).
 	 * <p>Default is a {@link DefaultParameterNameDiscoverer}.
 	 */
 	public void setParameterNameDiscoverer(@Nullable ParameterNameDiscoverer parameterNameDiscoverer) {
@@ -539,7 +539,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 	/**
 	 * Actually create the specified bean. Pre-creation processing has already happened
-	 * at this point, e.g. checking {@code postProcessBeforeInstantiation} callbacks.
+	 * at this point, for example, checking {@code postProcessBeforeInstantiation} callbacks.
 	 * <p>Differentiates between default bean instantiation, use of a
 	 * factory method, and autowiring a constructor.
 	 * @param beanName the name of the bean
@@ -814,10 +814,20 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Common return type found: all factory methods return same type. For a non-parameterized
 		// unique candidate, cache the full type declaration context of the target factory method.
-		cachedReturnType = (uniqueCandidate != null ?
-				ResolvableType.forMethodReturnType(uniqueCandidate) : ResolvableType.forClass(commonType));
-		mbd.factoryMethodReturnType = cachedReturnType;
-		return cachedReturnType.resolve();
+		try {
+			cachedReturnType = (uniqueCandidate != null ?
+					ResolvableType.forMethodReturnType(uniqueCandidate) : ResolvableType.forClass(commonType));
+			mbd.factoryMethodReturnType = cachedReturnType;
+			return cachedReturnType.resolve();
+		}
+		catch (LinkageError err) {
+			// For example, a NoClassDefFoundError for a generic method return type
+			if (logger.isDebugEnabled()) {
+				logger.debug("Failed to resolve type for factory method of bean '" + beanName + "': " +
+						(uniqueCandidate != null ? uniqueCandidate : commonType), err);
+			}
+			return null;
+		}
 	}
 
 	/**
@@ -834,10 +844,18 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 */
 	@Override
 	protected ResolvableType getTypeForFactoryBean(String beanName, RootBeanDefinition mbd, boolean allowInit) {
+		ResolvableType result;
+
 		// Check if the bean definition itself has defined the type with an attribute
-		ResolvableType result = getTypeForFactoryBeanFromAttributes(mbd);
-		if (result != ResolvableType.NONE) {
-			return result;
+		try {
+			result = getTypeForFactoryBeanFromAttributes(mbd);
+			if (result != ResolvableType.NONE) {
+				return result;
+			}
+		}
+		catch (IllegalArgumentException ex) {
+			throw new BeanDefinitionStoreException(mbd.getResourceDescription(), beanName,
+					String.valueOf(ex.getMessage()));
 		}
 
 		// For instance supplied beans, try the target type and bean class immediately
@@ -1881,7 +1899,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (logger.isTraceEnabled()) {
 			logger.trace("Invoking init method '" + methodName + "' on bean with name '" + beanName + "'");
 		}
-		Method methodToInvoke = ClassUtils.getInterfaceMethodIfPossible(initMethod, beanClass);
+		Method methodToInvoke = ClassUtils.getPubliclyAccessibleMethodIfPossible(initMethod, beanClass);
 
 		try {
 			ReflectionUtils.makeAccessible(methodToInvoke);

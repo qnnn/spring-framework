@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2023 the original author or authors.
+ * Copyright 2002-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import org.springframework.web.bind.annotation.ValueConstants;
  * request header, path variable, cookie, and others.
  *
  * @author Rossen Stoyanchev
+ * @author Olga Maciaszek-Sharma
  * @since 6.0
  */
 public abstract class AbstractNamedValueArgumentResolver implements HttpServiceArgumentResolver {
@@ -46,7 +47,6 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 	private static final TypeDescriptor STRING_TARGET_TYPE = TypeDescriptor.valueOf(String.class);
 
 	protected final Log logger = LogFactory.getLog(getClass());
-
 
 	@Nullable
 	private final ConversionService conversionService;
@@ -77,7 +77,7 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 	public boolean resolve(
 			@Nullable Object argument, MethodParameter parameter, HttpRequestValues.Builder requestValues) {
 
-		NamedValueInfo info = getNamedValueInfo(parameter);
+		NamedValueInfo info = getNamedValueInfo(parameter, requestValues);
 		if (info == null) {
 			return false;
 		}
@@ -102,10 +102,10 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 	}
 
 	@Nullable
-	private NamedValueInfo getNamedValueInfo(MethodParameter parameter) {
+	private NamedValueInfo getNamedValueInfo(MethodParameter parameter, HttpRequestValues.Metadata requestValues) {
 		NamedValueInfo info = this.namedValueInfoCache.get(parameter);
 		if (info == null) {
-			info = createNamedValueInfo(parameter);
+			info = createNamedValueInfo(parameter, requestValues);
 			if (info == null) {
 				return null;
 			}
@@ -122,6 +122,18 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 	@Nullable
 	protected abstract NamedValueInfo createNamedValueInfo(MethodParameter parameter);
 
+	/**
+	 * Variant of {@link #createNamedValueInfo(MethodParameter)} that also provides
+	 * access to the static values set from {@code @HttpExchange} attributes.
+	 * @since 6.2
+	 */
+	@Nullable
+	protected NamedValueInfo createNamedValueInfo(
+			MethodParameter parameter, HttpRequestValues.Metadata metadata) {
+
+		return createNamedValueInfo(parameter);
+	}
+
 	private NamedValueInfo updateNamedValueInfo(MethodParameter parameter, NamedValueInfo info) {
 		String name = info.name;
 		if (info.name.isEmpty()) {
@@ -133,7 +145,7 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 							.formatted(parameter.getNestedParameterType().getName()));
 			}
 		}
-		boolean required = (info.required && !parameter.getParameterType().equals(Optional.class));
+		boolean required = (info.required && !parameter.isOptional());
 		String defaultValue = (ValueConstants.DEFAULT_NONE.equals(info.defaultValue) ? null : info.defaultValue);
 		return info.update(name, required, defaultValue);
 	}
@@ -233,7 +245,9 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 		 * @param name the name to use, possibly empty if not specified
 		 * @param required whether it is marked as required
 		 * @param defaultValue fallback value, possibly {@link ValueConstants#DEFAULT_NONE}
-		 * @param label how it should appear in error messages, e.g. "path variable", "request header"
+		 * @param label how it should appear in error messages, for example, "path variable", "request header"
+		 * @param multiValued whether this argument resolver supports sending multiple values;
+		 * if not, then multiple values are formatted as a String value
 		 */
 		public NamedValueInfo(
 				String name, boolean required, @Nullable String defaultValue, String label, boolean multiValued) {
@@ -248,7 +262,6 @@ public abstract class AbstractNamedValueArgumentResolver implements HttpServiceA
 		public NamedValueInfo update(String name, boolean required, @Nullable String defaultValue) {
 			return new NamedValueInfo(name, required, defaultValue, this.label, this.multiValued);
 		}
-
 	}
 
 }

@@ -16,13 +16,12 @@
 
 package org.springframework.test.context.bean.override;
 
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.springframework.lang.Nullable;
 import org.springframework.test.context.ContextConfigurationAttributes;
-import org.springframework.test.context.ContextCustomizer;
 import org.springframework.test.context.ContextCustomizerFactory;
 import org.springframework.test.context.TestContextAnnotationUtils;
 
@@ -31,6 +30,8 @@ import org.springframework.test.context.TestContextAnnotationUtils;
  * Bean Overriding.
  *
  * @author Simon Baslé
+ * @author Stephane Nicoll
+ * @author Sam Brannen
  * @since 6.2
  * @see BeanOverride
  */
@@ -38,24 +39,21 @@ class BeanOverrideContextCustomizerFactory implements ContextCustomizerFactory {
 
 	@Override
 	@Nullable
-	public ContextCustomizer createContextCustomizer(Class<?> testClass,
+	public BeanOverrideContextCustomizer createContextCustomizer(Class<?> testClass,
 			List<ContextConfigurationAttributes> configAttributes) {
 
-		Set<Class<?>> detectedClasses = new LinkedHashSet<>();
-		findClassesWithBeanOverride(testClass, detectedClasses);
-		if (detectedClasses.isEmpty()) {
+		Set<BeanOverrideHandler> handlers = new HashSet<>();
+		findBeanOverrideHandler(testClass, handlers);
+		if (handlers.isEmpty()) {
 			return null;
 		}
-
-		return new BeanOverrideContextCustomizer(detectedClasses);
+		return new BeanOverrideContextCustomizer(handlers);
 	}
 
-	private void findClassesWithBeanOverride(Class<?> testClass, Set<Class<?>> detectedClasses) {
-		if (BeanOverrideParsingUtils.hasBeanOverride(testClass)) {
-			detectedClasses.add(testClass);
-		}
+	private void findBeanOverrideHandler(Class<?> testClass, Set<BeanOverrideHandler> handlers) {
+		handlers.addAll(BeanOverrideHandler.forTestClass(testClass));
 		if (TestContextAnnotationUtils.searchEnclosingClass(testClass)) {
-			findClassesWithBeanOverride(testClass.getEnclosingClass(), detectedClasses);
+			findBeanOverrideHandler(testClass.getEnclosingClass(), handlers);
 		}
 	}
 

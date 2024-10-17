@@ -79,6 +79,8 @@ public final class WebAsyncManager {
 
 	private AsyncTaskExecutor taskExecutor = DEFAULT_TASK_EXECUTOR;
 
+	private boolean isMultipartRequestParsed;
+
 	@Nullable
 	private volatile Object concurrentResult = RESULT_NONE;
 
@@ -104,7 +106,7 @@ public final class WebAsyncManager {
 	/**
 	 * Configure the {@link AsyncWebRequest} to use. This property may be set
 	 * more than once during a single request to accurately reflect the current
-	 * state of the request (e.g. following a forward, request/response
+	 * state of the request (for example, following a forward, request/response
 	 * wrapping, etc). However, it should not be set while concurrent handling
 	 * is in progress, i.e. while {@link #isConcurrentHandlingStarted()} is
 	 * {@code true}.
@@ -243,6 +245,23 @@ public final class WebAsyncManager {
 	}
 
 	/**
+	 * Mark the {@link WebAsyncManager} as wrapping a multipart async request.
+	 * @since 6.1.12
+	 */
+	public void setMultipartRequestParsed(boolean isMultipart) {
+		this.isMultipartRequestParsed = isMultipart;
+	}
+
+	/**
+	 * Return {@code true} if this {@link WebAsyncManager} was previously marked
+	 * as wrapping a multipart async request, {@code false} otherwise.
+	 * @since 6.1.12
+	 */
+	public boolean isMultipartRequestParsed() {
+		return this.isMultipartRequestParsed;
+	}
+
+	/**
 	 * Clear {@linkplain #getConcurrentResult() concurrentResult} and
 	 * {@linkplain #getConcurrentResultContext() concurrentResultContext}.
 	 */
@@ -369,16 +388,15 @@ public final class WebAsyncManager {
 		synchronized (WebAsyncManager.this) {
 			if (!this.state.compareAndSet(State.ASYNC_PROCESSING, State.RESULT_SET)) {
 				if (logger.isDebugEnabled()) {
-					logger.debug("Async result already set: " +
-							"[" + this.state.get() + "], ignored result: " + result +
-							" for " + formatUri(this.asyncWebRequest));
+					logger.debug("Async result already set: [" + this.state.get() +
+							"], ignored result for " + formatUri(this.asyncWebRequest));
 				}
 				return;
 			}
 
 			this.concurrentResult = result;
 			if (logger.isDebugEnabled()) {
-				logger.debug("Async result set to: " + result + " for " + formatUri(this.asyncWebRequest));
+				logger.debug("Async result set for " + formatUri(this.asyncWebRequest));
 			}
 
 			if (this.asyncWebRequest.isAsyncComplete()) {

@@ -30,6 +30,7 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.stomp.StompBrokerRelayMessageHandler;
+import org.springframework.scheduling.SchedulingTaskExecutor;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -47,7 +48,7 @@ import org.springframework.web.socket.messaging.SubProtocolWebSocketHandler;
  * The frequency of logging can be changed via {@link #setLoggingPeriod(long)}.
  *
  * <p>This class is declared as a Spring bean by the above configuration with the
- * name "webSocketMessageBrokerStats" and can be easily exported to JMX, e.g. with
+ * name "webSocketMessageBrokerStats" and can be easily exported to JMX, for example, with
  * the {@link org.springframework.jmx.export.MBeanExporter MBeanExporter}.
  *
  * @author Rossen Stoyanchev
@@ -239,9 +240,15 @@ public class WebSocketMessageBrokerStats implements SmartInitializingSingleton {
 		if (this.sockJsTaskScheduler == null) {
 			return "null";
 		}
-		if (this.sockJsTaskScheduler instanceof ThreadPoolTaskScheduler threadPoolTaskScheduler) {
-			return getExecutorStatsInfo(threadPoolTaskScheduler.getScheduledThreadPoolExecutor());
+
+		if (!(this.sockJsTaskScheduler instanceof SchedulingTaskExecutor)) {
+			return "thread-per-task";
 		}
+
+		if (this.sockJsTaskScheduler instanceof ThreadPoolTaskScheduler tpts) {
+			return getExecutorStatsInfo(tpts.getScheduledThreadPoolExecutor());
+		}
+
 		return "unknown";
 	}
 
@@ -250,8 +257,12 @@ public class WebSocketMessageBrokerStats implements SmartInitializingSingleton {
 			return "null";
 		}
 
-		if (executor instanceof ThreadPoolTaskExecutor threadPoolTaskScheduler) {
-			executor = threadPoolTaskScheduler.getThreadPoolExecutor();
+		if (!(executor instanceof SchedulingTaskExecutor) && (executor instanceof TaskExecutor)) {
+			return "thread-per-task";
+		}
+
+		if (executor instanceof ThreadPoolTaskExecutor tpte) {
+			executor = tpte.getThreadPoolExecutor();
 		}
 
 		if (executor instanceof ThreadPoolExecutor) {

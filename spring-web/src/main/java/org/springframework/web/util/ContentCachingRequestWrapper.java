@@ -47,7 +47,7 @@ import org.springframework.util.FastByteArrayOutputStream;
  * content is not consumed, then the content is not cached, and cannot be
  * retrieved via {@link #getContentAsByteArray()}.
  *
- * <p>Used e.g. by {@link org.springframework.web.filter.AbstractRequestLoggingFilter}.
+ * <p>Used, for example, by {@link org.springframework.web.filter.AbstractRequestLoggingFilter}.
  *
  * @author Juergen Hoeller
  * @author Brian Clozel
@@ -89,7 +89,12 @@ public class ContentCachingRequestWrapper extends HttpServletRequestWrapper {
 	public ContentCachingRequestWrapper(HttpServletRequest request, int contentCacheLimit) {
 		super(request);
 		int contentLength = request.getContentLength();
-		this.cachedContent = (contentLength > 0) ? new FastByteArrayOutputStream(contentLength) : new FastByteArrayOutputStream();
+		if (contentLength > 0) {
+			this.cachedContent = new FastByteArrayOutputStream(Math.min(contentLength, contentCacheLimit));
+		}
+		else {
+			this.cachedContent = new FastByteArrayOutputStream();
+		}
 		this.contentCacheLimit = contentCacheLimit;
 	}
 

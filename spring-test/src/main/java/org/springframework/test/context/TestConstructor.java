@@ -22,6 +22,7 @@ import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Locale;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -46,8 +47,8 @@ import org.springframework.lang.Nullable;
  * <p>This annotation may be used as a <em>meta-annotation</em> to create custom
  * <em>composed annotations</em>.
  *
- * <p>As of Spring Framework 5.2, this annotation is only supported in conjunction
- * with the {@link org.springframework.test.context.junit.jupiter.SpringExtension
+ * <p>This annotation is only supported in conjunction with the
+ * {@link org.springframework.test.context.junit.jupiter.SpringExtension
  * SpringExtension} for use with JUnit Jupiter. Note that the {@code SpringExtension} is
  * often automatically registered for you &mdash; for example, when using annotations such as
  * {@link org.springframework.test.context.junit.jupiter.SpringJUnitConfig @SpringJUnitConfig} and
@@ -161,7 +162,7 @@ public @interface TestConstructor {
 				return null;
 			}
 			try {
-				return AutowireMode.valueOf(name.trim().toUpperCase());
+				return AutowireMode.valueOf(name.trim().toUpperCase(Locale.ROOT));
 			}
 			catch (IllegalArgumentException ex) {
 				Log logger = LogFactory.getLog(AutowireMode.class);

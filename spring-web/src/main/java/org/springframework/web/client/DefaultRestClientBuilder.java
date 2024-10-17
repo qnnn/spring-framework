@@ -16,8 +16,10 @@
 
 package org.springframework.web.client;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +37,7 @@ import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.client.InterceptingClientHttpRequestFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.http.client.JettyClientHttpRequestFactory;
+import org.springframework.http.client.ReactorClientHttpRequestFactory;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.client.observation.ClientRequestObservationConvention;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
@@ -62,6 +65,7 @@ import org.springframework.web.util.UriTemplateHandler;
  *
  * @author Arjen Poutsma
  * @author Hyoungjune Kim
+ * @author Sebastien Deleuze
  * @since 6.1
  */
 final class DefaultRestClientBuilder implements RestClient.Builder {
@@ -71,6 +75,8 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 	private static final boolean httpComponentsClientPresent;
 
 	private static final boolean jettyClientPresent;
+
+	private static final boolean reactorNettyClientPresent;
 
 	private static final boolean jdkClientPresent;
 
@@ -96,6 +102,7 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 
 		httpComponentsClientPresent = ClassUtils.isPresent("org.apache.hc.client5.http.classic.HttpClient", loader);
 		jettyClientPresent = ClassUtils.isPresent("org.eclipse.jetty.client.HttpClient", loader);
+		reactorNettyClientPresent = ClassUtils.isPresent("reactor.netty.http.client.HttpClient", loader);
 		jdkClientPresent = ClassUtils.isPresent("java.net.http.HttpClient", loader);
 
 		jackson2Present = ClassUtils.isPresent("com.fasterxml.jackson.databind.ObjectMapper", loader) &&
@@ -246,6 +253,12 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 	}
 
 	@Override
+	public RestClient.Builder baseUrl(URI baseUrl) {
+		this.baseUrl = baseUrl.toString();
+		return this;
+	}
+
+	@Override
 	public RestClient.Builder defaultUriVariables(Map<String, ?> defaultUriVariables) {
 		this.defaultUriVariables = defaultUriVariables;
 		return this;
@@ -351,6 +364,14 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 	@Override
 	public RestClient.Builder messageConverters(Consumer<List<HttpMessageConverter<?>>> configurer) {
 		configurer.accept(initMessageConverters());
+		validateConverters(this.messageConverters);
+		return this;
+	}
+
+	@Override
+	public RestClient.Builder messageConverters(List<HttpMessageConverter<?>> messageConverters) {
+		validateConverters(messageConverters);
+		this.messageConverters = Collections.unmodifiableList(messageConverters);
 		return this;
 	}
 
@@ -406,6 +427,11 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 		return this.messageConverters;
 	}
 
+	private void validateConverters(@Nullable List<HttpMessageConverter<?>> messageConverters) {
+		Assert.notEmpty(messageConverters, "At least one HttpMessageConverter is required");
+		Assert.noNullElements(messageConverters, "The HttpMessageConverter list must not contain null elements");
+	}
+
 
 	@Override
 	public RestClient.Builder clone() {
@@ -440,6 +466,9 @@ final class DefaultRestClientBuilder implements RestClient.Builder {
 		}
 		else if (jettyClientPresent) {
 			return new JettyClientHttpRequestFactory();
+		}
+		else if (reactorNettyClientPresent) {
+			return new ReactorClientHttpRequestFactory();
 		}
 		else if (jdkClientPresent) {
 			// java.net.http module might not be loaded, so we can't default to the JDK HttpClient

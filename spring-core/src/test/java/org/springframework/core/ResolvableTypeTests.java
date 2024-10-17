@@ -1290,6 +1290,30 @@ class ResolvableTypeTests {
 	}
 
 	@Test
+	void hasResolvableGenerics() throws Exception {
+		ResolvableType type = ResolvableType.forField(Fields.class.getField("stringList"));
+		assertThat(type.hasResolvableGenerics()).isTrue();
+	}
+
+	@Test
+	void hasResolvableGenericsWithSingleBoundedWildcard() throws Exception {
+		ResolvableType type = ResolvableType.forField(Fields.class.getField("wildcardType"));
+		assertThat(type.hasResolvableGenerics()).isTrue();
+	}
+
+	@Test
+	void hasResolvableGenericsWithSingleParameterizedType() throws Exception {
+		ResolvableType type = ResolvableType.forField(Fields.class.getField("parameterizedType"));
+		assertThat(type.hasResolvableGenerics()).isFalse();
+	}
+
+	@Test
+	void hasResolvableGenericsWithSingleWildcard() throws Exception {
+		ResolvableType type = ResolvableType.forField(Fields.class.getField("anyListElement"));
+		assertThat(type.hasResolvableGenerics()).isFalse();
+	}
+
+	@Test
 	void hasUnresolvableGenerics() throws Exception {
 		ResolvableType type = ResolvableType.forField(Fields.class.getField("stringList"));
 		assertThat(type.hasUnresolvableGenerics()).isFalse();
@@ -1403,6 +1427,23 @@ class ResolvableTypeTests {
 		assertThat(repository3.isAssignableFromResolvedPart(repository1)).isFalse();
 	}
 
+	@Test
+	void gh33535() throws Exception {
+		ResolvableType repository1 = ResolvableType.forField(Fields.class.getField("stringRepository"));
+		ResolvableType repository2 = ResolvableType.forField(Fields.class.getField("arrayRepository"));
+		ResolvableType repository3 = ResolvableType.forMethodReturnType(Methods.class.getMethod("someRepository"));
+		assertThat(repository1.hasUnresolvableGenerics()).isFalse();
+		assertThat(repository1.isAssignableFrom(repository3)).isFalse();
+		assertThat(repository1.isAssignableFromResolvedPart(repository3)).isTrue();
+		assertThat(repository3.isAssignableFrom(repository1)).isTrue();
+		assertThat(repository3.isAssignableFromResolvedPart(repository1)).isTrue();
+		assertThat(repository2.hasUnresolvableGenerics()).isFalse();
+		assertThat(repository2.isAssignableFrom(repository3)).isFalse();
+		assertThat(repository2.isAssignableFromResolvedPart(repository3)).isTrue();
+		assertThat(repository3.isAssignableFrom(repository2)).isTrue();
+		assertThat(repository3.isAssignableFromResolvedPart(repository2)).isTrue();
+	}
+
 
 	private ResolvableType testSerialization(ResolvableType type) throws Exception {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -1466,6 +1507,8 @@ class ResolvableTypeTests {
 
 		public List<String>[][][] genericMultiArrayType;
 
+		public List<?> anyListElement;
+
 		public List<? extends Number> wildcardType;
 
 		public List<? super Number> wildcardSuperType = new ArrayList<Object>();
@@ -1499,6 +1542,10 @@ class ResolvableTypeTests {
 		public int[] intArray;
 
 		public SomeRepository<? extends Serializable> repository;
+
+		public SomeRepository<String> stringRepository;
+
+		public SomeRepository<String[]> arrayRepository;
 	}
 
 

@@ -49,6 +49,7 @@ import org.springframework.cglib.proxy.MethodProxy;
 import org.springframework.cglib.proxy.NoOp;
 import org.springframework.cglib.transform.ClassEmitterTransformer;
 import org.springframework.cglib.transform.TransformingClassGenerator;
+import org.springframework.core.SmartClassLoader;
 import org.springframework.lang.Nullable;
 import org.springframework.objenesis.ObjenesisException;
 import org.springframework.objenesis.SpringObjenesis;
@@ -101,7 +102,7 @@ class ConfigurationClassEnhancer {
 			if (logger.isDebugEnabled()) {
 				logger.debug(String.format("Ignoring request to enhance %s as it has " +
 						"already been enhanced. This usually indicates that more than one " +
-						"ConfigurationClassPostProcessor has been registered (e.g. via " +
+						"ConfigurationClassPostProcessor has been registered (for example, via " +
 						"<context:annotation-config>). This is harmless, but you may " +
 						"want check your configuration and remove one CCPP if possible",
 						configClass.getName()));
@@ -132,11 +133,19 @@ class ConfigurationClassEnhancer {
 		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
 		enhancer.setUseFactory(false);
 		enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
-		enhancer.setAttemptLoad(true);
+		enhancer.setAttemptLoad(!isClassReloadable(configSuperClass, classLoader));
 		enhancer.setStrategy(new BeanFactoryAwareGeneratorStrategy(classLoader));
 		enhancer.setCallbackFilter(CALLBACK_FILTER);
 		enhancer.setCallbackTypes(CALLBACK_FILTER.getCallbackTypes());
 		return enhancer;
+	}
+
+	/**
+	 * Checks whether the given configuration class is reloadable.
+	 */
+	private boolean isClassReloadable(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
+		return (classLoader instanceof SmartClassLoader smartClassLoader &&
+				smartClassLoader.isClassReloadable(configSuperClass));
 	}
 
 	/**
@@ -155,7 +164,7 @@ class ConfigurationClassEnhancer {
 	/**
 	 * Marker interface to be implemented by all @Configuration CGLIB subclasses.
 	 * Facilitates idempotent behavior for {@link ConfigurationClassEnhancer#enhance}
-	 * through checking to see if candidate classes are already assignable to it, e.g.
+	 * through checking to see if candidate classes are already assignable to it, for example,
 	 * have already been enhanced.
 	 * <p>Also extends {@link BeanFactoryAware}, as all enhanced {@code @Configuration}
 	 * classes require access to the {@link BeanFactory} that created them.

@@ -24,6 +24,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -71,6 +72,8 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	private static final String DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz";
 
 	private static final TimeZone GMT = TimeZone.getTimeZone("GMT");
+
+	private static final MediaType APPLICATION_PLUS_JSON = new MediaType("application", "*+json");
 
 
 	//---------------------------------------------------------------------
@@ -223,7 +226,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 				}
 				catch (Exception ignored) {
 					String value = this.contentType;
-					int charsetIndex = value.toLowerCase().indexOf(CHARSET_PREFIX);
+					int charsetIndex = value.toLowerCase(Locale.ROOT).indexOf(CHARSET_PREFIX);
 					if (charsetIndex != -1) {
 						value = value.substring(0, charsetIndex).trim();
 						if (value.endsWith(";")) {
@@ -243,7 +246,7 @@ public class MockHttpServletResponse implements HttpServletResponse {
 	private void updateContentTypePropertyAndHeader() {
 		if (this.contentType != null) {
 			String value = this.contentType;
-			if (this.characterEncodingSet && !value.toLowerCase().contains(CHARSET_PREFIX)) {
+			if (this.characterEncodingSet && !value.toLowerCase(Locale.ROOT).contains(CHARSET_PREFIX)) {
 				value += ';' + CHARSET_PREFIX + getCharacterEncoding();
 				this.contentType = value;
 			}
@@ -348,10 +351,14 @@ public class MockHttpServletResponse implements HttpServletResponse {
 				if (mediaType.getCharset() != null) {
 					setExplicitCharacterEncoding(mediaType.getCharset().name());
 				}
+				else if (mediaType.isCompatibleWith(MediaType.APPLICATION_JSON) ||
+						mediaType.isCompatibleWith(APPLICATION_PLUS_JSON)) {
+						this.characterEncoding = StandardCharsets.UTF_8.name();
+				}
 			}
 			catch (Exception ex) {
 				// Try to get charset value anyway
-				int charsetIndex = contentType.toLowerCase().indexOf(CHARSET_PREFIX);
+				int charsetIndex = contentType.toLowerCase(Locale.ROOT).indexOf(CHARSET_PREFIX);
 				if (charsetIndex != -1) {
 					setExplicitCharacterEncoding(contentType.substring(charsetIndex + CHARSET_PREFIX.length()));
 				}
@@ -480,6 +487,9 @@ public class MockHttpServletResponse implements HttpServletResponse {
 		}
 		if (cookie.isHttpOnly()) {
 			buf.append("; HttpOnly");
+		}
+		if (cookie.getAttribute("Partitioned") != null) {
+			buf.append("; Partitioned");
 		}
 		if (cookie instanceof MockCookie mockCookie) {
 			if (StringUtils.hasText(mockCookie.getSameSite())) {

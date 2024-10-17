@@ -90,6 +90,13 @@ class ContentCachingRequestWrapperTests {
 	}
 
 	@Test
+	void shouldNotAllocateMoreThanCacheLimit() throws Exception {
+		ContentCachingRequestWrapper wrapper = new ContentCachingRequestWrapper(createGetRequest("Hello World"), CONTENT_CACHE_LIMIT);
+		assertThat(wrapper).extracting("cachedContent.initialBlockSize").isEqualTo(CONTENT_CACHE_LIMIT);
+	}
+
+
+	@Test
 	void cachedContentWithOverflow() throws Exception {
 		ContentCachingRequestWrapper wrapper = new ContentCachingRequestWrapper(
 				createGetRequest("Hello World"), CONTENT_CACHE_LIMIT) {
@@ -99,8 +106,8 @@ class ContentCachingRequestWrapperTests {
 			}
 		};
 
-		assertThatIllegalStateException().isThrownBy(() ->
-						wrapper.getInputStream().readAllBytes())
+		assertThatIllegalStateException()
+				.isThrownBy(() -> wrapper.getInputStream().readAllBytes())
 				.withMessage("3");
 	}
 

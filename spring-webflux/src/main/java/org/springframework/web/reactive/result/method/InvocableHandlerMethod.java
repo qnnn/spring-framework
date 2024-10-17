@@ -63,7 +63,7 @@ import org.springframework.web.server.ServerWebExchange;
  * {@link HandlerMethodArgumentResolver}.
  * <p>By default, the method invocation happens on the thread from which the
  * {@code Mono} was subscribed to, or in some cases the thread that emitted one
- * of the resolved arguments (e.g. when the request body needs to be decoded).
+ * of the resolved arguments (for example, when the request body needs to be decoded).
  * To ensure a predictable thread for the underlying method's invocation,
  * a {@link Scheduler} can optionally be provided via
  * {@link #setInvocationScheduler(Scheduler)}.
@@ -129,7 +129,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 
 	/**
 	 * Set the ParameterNameDiscoverer for resolving parameter names when needed
-	 * (e.g. default request attribute name).
+	 * (for example, default request attribute name).
 	 * <p>Default is a {@link DefaultParameterNameDiscoverer}.
 	 */
 	public void setParameterNameDiscoverer(ParameterNameDiscoverer nameDiscoverer) {
@@ -325,7 +325,7 @@ public class InvocableHandlerMethod extends HandlerMethod {
 		@Nullable
 		@SuppressWarnings({"deprecation", "DataFlowIssue"})
 		public static Object invokeFunction(Method method, Object target, Object[] args, boolean isSuspendingFunction,
-				ServerWebExchange exchange) throws InvocationTargetException, IllegalAccessException {
+				ServerWebExchange exchange) throws InvocationTargetException, IllegalAccessException, NoSuchMethodException {
 
 			if (isSuspendingFunction) {
 				Object coroutineContext = exchange.getAttribute(COROUTINE_CONTEXT_ATTRIBUTE);
@@ -369,6 +369,9 @@ public class InvocableHandlerMethod extends HandlerMethod {
 					}
 				}
 				Object result = function.callBy(argMap);
+				if (result != null && KotlinDetector.isInlineClass(result.getClass())) {
+					return result.getClass().getDeclaredMethod("unbox-impl").invoke(result);
+				}
 				return (result == Unit.INSTANCE ? null : result);
 			}
 		}

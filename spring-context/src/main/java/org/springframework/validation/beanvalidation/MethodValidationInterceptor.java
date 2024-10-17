@@ -59,7 +59,7 @@ import org.springframework.validation.method.ParameterValidationResult;
  * their parameters and/or on their return value (in the latter case specified at
  * the method level, typically as inline annotation).
  *
- * <p>E.g.: {@code public @NotNull Object myValidMethod(@NotNull String arg1, @Max(10) int arg2)}
+ * <p>For example: {@code public @NotNull Object myValidMethod(@NotNull String arg1, @Max(10) int arg2)}
  *
  * <p>In case of validation errors, the interceptor can raise
  * {@link ConstraintViolationException}, or adapt the violations to
@@ -69,7 +69,7 @@ import org.springframework.validation.method.ParameterValidationResult;
  * at the type level of the containing target class, applying to all public service methods
  * of that class. By default, JSR-303 will validate against its default group only.
  *
- * <p>As of Spring 5.0, this functionality requires a Bean Validation 1.1+ provider.
+ * <p>This functionality requires a Bean Validation 1.1+ provider.
  *
  * @author Juergen Hoeller
  * @author Rossen Stoyanchev
@@ -174,7 +174,7 @@ public class MethodValidationInterceptor implements MethodInterceptor {
 		Object returnValue = invocation.proceed();
 
 		if (this.adaptViolations) {
-			this.validationAdapter.applyReturnValueValidation(target, method, null, arguments, groups);
+			this.validationAdapter.applyReturnValueValidation(target, method, null, returnValue, groups);
 		}
 		else {
 			violations = this.validationAdapter.invokeValidatorForReturnValue(target, method, returnValue, groups);

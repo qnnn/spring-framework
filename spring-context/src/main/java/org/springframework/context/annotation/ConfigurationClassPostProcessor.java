@@ -229,7 +229,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * class names instead of standard component overriding).
 	 * <p>Note that this strategy does <em>not</em> apply to {@link Bean} methods.
 	 * <p>This setter is typically only appropriate when configuring the post-processor as a
-	 * standalone bean definition in XML, e.g. not using the dedicated {@code AnnotationConfig*}
+	 * standalone bean definition in XML, for example, not using the dedicated {@code AnnotationConfig*}
 	 * application contexts or the {@code <context:annotation-config>} element. Any bean name
 	 * generator specified against the application context will take precedence over any set here.
 	 * @since 3.1.1
@@ -761,12 +761,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		private CodeBlock handleNull(@Nullable Object value, Supplier<CodeBlock> nonNull) {
-			if (value == null) {
-				return CodeBlock.of("null");
-			}
-			else {
-				return nonNull.get();
-			}
+			return (value == null ? CodeBlock.of("null") : nonNull.get());
 		}
 	}
 
@@ -786,8 +781,9 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		@Override
-		public CodeBlock generateSetBeanDefinitionPropertiesCode(GenerationContext generationContext,
-				BeanRegistrationCode beanRegistrationCode, RootBeanDefinition beanDefinition, Predicate<String> attributeFilter) {
+		public CodeBlock generateSetBeanDefinitionPropertiesCode(
+				GenerationContext generationContext, BeanRegistrationCode beanRegistrationCode,
+				RootBeanDefinition beanDefinition, Predicate<String> attributeFilter) {
 
 			CodeBlock.Builder code = CodeBlock.builder();
 			code.add(super.generateSetBeanDefinitionPropertiesCode(generationContext,
@@ -798,17 +794,21 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		@Override
-		public CodeBlock generateInstanceSupplierCode(GenerationContext generationContext,
-				BeanRegistrationCode beanRegistrationCode, boolean allowDirectSupplierShortcut) {
+		public CodeBlock generateInstanceSupplierCode(
+				GenerationContext generationContext, BeanRegistrationCode beanRegistrationCode,
+				boolean allowDirectSupplierShortcut) {
 
 			InstantiationDescriptor instantiationDescriptor = proxyInstantiationDescriptor(
 					generationContext.getRuntimeHints(), this.registeredBean.resolveInstantiationDescriptor());
+
 			return new InstanceSupplierCodeGenerator(generationContext,
 					beanRegistrationCode.getClassName(), beanRegistrationCode.getMethods(), allowDirectSupplierShortcut)
 					.generateCode(this.registeredBean, instantiationDescriptor);
 		}
 
-		private InstantiationDescriptor proxyInstantiationDescriptor(RuntimeHints runtimeHints, InstantiationDescriptor instantiationDescriptor) {
+		private InstantiationDescriptor proxyInstantiationDescriptor(
+				RuntimeHints runtimeHints, InstantiationDescriptor instantiationDescriptor) {
+
 			Executable userExecutable = instantiationDescriptor.executable();
 			if (userExecutable instanceof Constructor<?> userConstructor) {
 				try {
